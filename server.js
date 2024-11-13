@@ -4,12 +4,12 @@ const multer = require('multer');  // Middleware to handle file uploads
 const cors = require('cors');
 require('dotenv').config();
 
-// Initialize Express app
 const app = express();
 const port = 5000;
 
 // Middleware
 app.use(cors());
+app.use(express.json());  // To parse incoming JSON requests
 
 // Set up multer for file upload (optional)
 const upload = multer({ dest: 'uploads/' });  // Specify the destination for file uploads
@@ -30,6 +30,10 @@ app.post('/api/submit-booking', upload.single('attachment'), (req, res) => {
   // Optional: If a file is uploaded, handle it here
   const attachment = req.file ? req.file.path : null;
 
+  // Respond immediately to the client to avoid waiting for email processing
+  res.status(200).send('Booking request submitted successfully!');
+
+  // Prepare the email content
   const mailOptions = {
     from: process.env.EMAIL_USER,  // Sender's email address
     to: 'patrisrinu526@gmail.com', // Replace with the owner's email address
@@ -47,20 +51,19 @@ app.post('/api/submit-booking', upload.single('attachment'), (req, res) => {
       Date: ${date}
       Time: ${time}
       Message: ${message}
-      
-      Attachment: ${attachment ? 'Yes, see attached PDF.' : 'No attachment.'}
+
+      Attachment: ${attachment ? 'Yes, see attached file.' : 'No attachment.'}
     `,
-    attachments: attachment
-      ? [{ path: attachment }]  // Attach the uploaded file if present
-      : [],  // No attachment if file not uploaded
+    attachments: attachment ? [{ path: attachment }] : [],
   };
 
+  // Send email asynchronously (do not block the response)
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
-      console.log(error);
-      return res.status(500).send('Error sending email.');
+      console.log('Error sending email:', error);
+    } else {
+      console.log('Email sent successfully:', info.response);
     }
-    res.status(200).send('Booking request submitted successfully!');
   });
 });
 
